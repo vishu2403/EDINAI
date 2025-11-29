@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from typing import Dict, Optional
 
+from psycopg import OperationalError
+
 from ..postgres import get_pg_cursor
+
+logger = logging.getLogger(__name__)
 
 _TABLE_NAME = "admin_lecture_usage"
 
@@ -23,7 +28,15 @@ def _ensure_table_exists() -> None:
         cur.execute(create_table_sql)
 
 
-_ensure_table_exists()
+try:
+    _ensure_table_exists()
+except OperationalError as exc:
+    logger.warning(
+        "Skipping lecture usage table bootstrap during startup due to database error: %s",
+        exc,
+    )
+except Exception:
+    logger.exception("Unexpected error while ensuring lecture usage table exists")
 
 
 def get_usage(admin_id: int) -> Dict[str, int]:

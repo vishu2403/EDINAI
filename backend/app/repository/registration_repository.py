@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, List, Optional
+import logging
+
+from psycopg import OperationalError
 
 from ..postgres import get_pg_cursor
+
+logger = logging.getLogger(__name__)
 from . import admin_portal_repository
 
 _ADMIN_COLUMNS = [
@@ -53,7 +58,15 @@ def _ensure_table_exists() -> None:
         cur.execute(create_index_sql)
 
 
-_ensure_table_exists()
+try:
+    _ensure_table_exists()
+except OperationalError as exc:
+    logger.warning(
+        "Skipping administrators table bootstrap during startup due to database error: %s",
+        exc,
+    )
+except Exception:
+    logger.exception("Unexpected error while ensuring administrators table exists")
 
 
 def _row_to_admin(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:

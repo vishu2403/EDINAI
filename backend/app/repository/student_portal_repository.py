@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from typing import Any, Dict, List, Optional, Sequence
 
+from psycopg import OperationalError
+
 from ..postgres import get_pg_cursor
+
+logger = logging.getLogger(__name__)
 
 _ACCOUNT_COLUMNS: List[str] = [
     "id",
@@ -62,7 +67,15 @@ def _ensure_chat_message_columns() -> None:
             cur.execute(statement)
 
 
-_ensure_chat_message_columns()
+try:
+    _ensure_chat_message_columns()
+except OperationalError as exc:
+    logger.warning(
+        "Skipping student chat schema bootstrap during startup due to database error: %s",
+        exc,
+    )
+except Exception:
+    logger.exception("Unexpected error while ensuring student chat message columns")
 
 
 def _row_to_account(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:

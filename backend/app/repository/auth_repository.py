@@ -4,7 +4,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+import logging
+
+from psycopg import OperationalError
+
 from ..postgres import get_pg_cursor
+
+
+logger = logging.getLogger(__name__)
 
 _ADMIN_COLUMNS = [
     "admin_id",
@@ -55,9 +62,19 @@ def fetch_admin_by_email(email: str) -> Optional[Dict[str, Any]]:
         f"SELECT {', '.join(_ADMIN_COLUMNS)} FROM admins "
         "WHERE LOWER(email) = LOWER(%(email)s) LIMIT 1"
     )
-    with get_pg_cursor() as cur:
-        cur.execute(query, {"email": email})
-        row = cur.fetchone()
+    try:
+        with get_pg_cursor() as cur:
+            cur.execute(query, {"email": email})
+            row = cur.fetchone()
+    except OperationalError as exc:
+        logger.warning(
+            "Failed to fetch admin by email due to database error: %s",
+            exc,
+        )
+        return None
+    except Exception:
+        logger.exception("Unexpected error while fetching admin by email")
+        return None
     return _row_to_admin(row)
 
 
@@ -77,9 +94,19 @@ def fetch_member_by_email(email: str) -> Optional[Dict[str, Any]]:
         f"SELECT {', '.join(_MEMBER_COLUMNS)} FROM members "
         "WHERE LOWER(email) = LOWER(%(email)s) LIMIT 1"
     )
-    with get_pg_cursor() as cur:
-        cur.execute(query, {"email": email})
-        row = cur.fetchone()
+    try:
+        with get_pg_cursor() as cur:
+            cur.execute(query, {"email": email})
+            row = cur.fetchone()
+    except OperationalError as exc:
+        logger.warning(
+            "Failed to fetch member by email due to database error: %s",
+            exc,
+        )
+        return None
+    except Exception:
+        logger.exception("Unexpected error while fetching member by email")
+        return None
     return _row_to_member(row)
 
 

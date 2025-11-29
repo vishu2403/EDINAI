@@ -14,21 +14,21 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:1171',
+        target: 'http://localhost:6060',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/admin-api': {
-        target: 'http://localhost:1171',
+        target: 'http://localhost:6060',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/admin-api/, ''),
       },
       '/uploads': {
-        target: 'http://localhost:1171',
+        target: 'http://localhost:6060',
         changeOrigin: true,
       },
       '/chapter-materials': {
-        target: 'http://localhost:1171',
+        target: 'http://localhost:6060',
         changeOrigin: true,
       },
     },

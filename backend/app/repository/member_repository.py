@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from typing import Any, Dict, Iterable, List, Optional
 
+from psycopg import OperationalError
+
 from ..postgres import get_pg_cursor
+
+logger = logging.getLogger(__name__)
 
 _MEMBER_COLUMNS: List[str] = [
     "member_id",
@@ -47,7 +52,15 @@ def _ensure_members_table_schema() -> None:
         )
 
 
-_ensure_members_table_schema()
+try:
+    _ensure_members_table_schema()
+except OperationalError as exc:
+    logger.warning(
+        "Skipping members table schema check during startup due to database error: %s",
+        exc,
+    )
+except Exception:
+    logger.exception("Unexpected error while ensuring members table schema")
 
 
 def _row_to_member(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:

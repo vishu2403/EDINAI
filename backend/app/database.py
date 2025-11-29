@@ -6,13 +6,26 @@ from collections.abc import Generator
 import logging
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .config import settings
 
+
+def _normalize_database_url(raw_url: str) -> str:
+    """Ensure PostgreSQL URLs use the psycopg driver."""
+
+    if raw_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + raw_url[len("postgresql://") :]
+    if raw_url.startswith("postgres://"):
+        return "postgresql+psycopg://" + raw_url[len("postgres://") :]
+    return raw_url
+
 logger = logging.getLogger(__name__)
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+database_url = _normalize_database_url(settings.database_url)
+
+engine = create_engine(database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -201,7 +214,14 @@ def init_db() -> None:
     # Import models that should be registered with SQLAlchemy metadata.
     import app.models.chapter_material  # noqa: F401  (ensure model is imported)
 
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except OperationalError as exc:
+        logger.warning(
+            "Skipping SQLAlchemy metadata creation during startup due to database error: %s",
+            exc,
+        )
+        return
     try:
         _ensure_chapter_material_timestamps()
         _ensure_lecture_gen_timestamps()

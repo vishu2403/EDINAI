@@ -9,6 +9,7 @@ from typing import Dict, Tuple
 
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
+from psycopg import OperationalError
 
 from ..config import settings
 from ..repository import (
@@ -43,7 +44,19 @@ def ensure_dev_admin_account() -> None:
         return
 
     normalized_email = email.lower().strip()
-    if auth_repository.fetch_admin_by_email(normalized_email):
+    try:
+        existing_admin = auth_repository.fetch_admin_by_email(normalized_email)
+    except OperationalError as exc:
+        logger.warning(
+            "Skipping dev admin bootstrap during startup due to database error: %s",
+            exc,
+        )
+        return
+    except Exception:
+        logger.exception("Unexpected error while checking for dev admin account")
+        return
+
+    if existing_admin:
         return
 
     now = datetime.utcnow()
@@ -64,6 +77,11 @@ def ensure_dev_admin_account() -> None:
             updated_at=now,
         )
         logger.info("Seeded dev admin account for %s", normalized_email)
+    except OperationalError as exc:
+        logger.warning(
+            "Failed to seed dev admin account due to database error: %s",
+            exc,
+        )
     except Exception:
         logger.exception("Failed to seed dev admin account")
 

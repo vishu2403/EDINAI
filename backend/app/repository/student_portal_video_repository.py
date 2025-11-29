@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 from typing import Any, Dict, Iterable, List, Optional
 
+from psycopg import OperationalError
+
 from ..postgres import get_pg_cursor
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_tables_exist() -> None:
@@ -59,7 +64,15 @@ def _ensure_tables_exist() -> None:
         cur.execute(create_comments_sql)
 
 
-_ensure_tables_exist()
+try:
+    _ensure_tables_exist()
+except OperationalError as exc:
+    logger.warning(
+        "Skipping student portal video table bootstrap during startup due to database error: %s",
+        exc,
+    )
+except Exception:
+    logger.exception("Unexpected error while ensuring student portal video tables exist")
 
 
 def _row_to_video(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:

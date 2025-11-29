@@ -7,6 +7,8 @@ bcrypt
 python-jose[cryptography]
 python-multipart
 pydantic
+pydantic-settings
+SQLAlchemy
 email-validator
 python-dotenv
 pillow
