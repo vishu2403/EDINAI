@@ -1,0 +1,25 @@
+fastapi
+uvicorn[standard]
+psycopg[binary]
+aiosqlite
+passlib[bcrypt]
+bcrypt
+python-jose[cryptography]
+python-multipart
+pydantic
+email-validator
+python-dotenv
+pillow
+python-socketio[asgi]
+# PDF and OCR processing
+PyPDF2
+pytesseract
+pdf2image
+# AI and API clients
+groq
+openai
+# Additional utilities
+langdetect
+reportlab
+openpyxl
+
