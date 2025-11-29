@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY requirements.txt ./
+COPY backend/requirements.txt ./requirements.txt
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y build-essential libpq-dev poppler-utils tesseract-ocr && \
