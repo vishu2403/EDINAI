@@ -1,0 +1,82 @@
+"""SQLAlchemy model for uploaded chapter materials."""
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import BigInteger, Column, DateTime, Integer, String, func, JSON
+
+from app.database import Base
+
+
+class ChapterMaterial(Base):
+    __tablename__ = "chapter_materials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, nullable=False, index=True)
+    std = Column(String(32), nullable=False)
+    subject = Column(String(128), nullable=False)
+    sem = Column(String(32), nullable=True)
+    board = Column(String(64), nullable=True)
+    chapter_number = Column(String(128), nullable=False)
+    chapter_title = Column(String(255), nullable=True)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(512), nullable=False)
+    file_size = Column(BigInteger, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "admin_id": self.admin_id,
+            "std": self.std,
+            "subject": self.subject,
+            "sem": self.sem,
+            "board": self.board,
+            "chapter_number": self.chapter_number,
+            "chapter_title": self.chapter_title,
+            "file_name": self.file_name,
+            "file_path": self.file_path,
+            "file_size": self.file_size,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+class LectureGen(Base):
+    """Model for storing generated lectures"""
+    __tablename__ = "lecture_gen"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, nullable=False, index=True)
+    material_id = Column(Integer, nullable=False, index=True)
+    lecture_uid = Column(String(64), nullable=False, unique=True, index=True)
+    lecture_title = Column(String(255), nullable=False)
+    lecture_link = Column(String(512), nullable=False)  # JSON URL will be stored here
+    lecture_data = Column(JSON, nullable=True)
+    subject = Column(String(128), nullable=True)
+    std = Column(String(32), nullable=True)
+    sem = Column(String(32), nullable=True)
+    board = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "admin_id": self.admin_id,
+            "material_id": self.material_id,
+            "lecture_uid": self.lecture_uid,
+            "lecture_title": self.lecture_title,
+            "lecture_link": self.lecture_link,
+            "subject": self.subject,
+            "std": self.std,
+            "sem": self.sem,
+            "board": self.board,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
