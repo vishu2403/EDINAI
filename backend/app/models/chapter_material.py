@@ -1,0 +1,95 @@
+"""SQLAlchemy model for uploaded chapter materials."""
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, String, func, JSON
+
+from app.database import Base
+
+
+class ChapterMaterial(Base):
+    __tablename__ = "chapter_materials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, nullable=False, index=True)
+    std = Column(String(32), nullable=False)
+    subject = Column(String(128), nullable=False)
+    sem = Column(String(32), nullable=True)
+    board = Column(String(64), nullable=True)
+    chapter_number = Column(String(128), nullable=False)
+    chapter_title = Column(String(255), nullable=True)
+    chapter_title_override = Column(String(255), nullable=True)
+    topic_title_override = Column(String(255), nullable=True)
+    video_duration_minutes = Column(Integer, nullable=True)
+    video_resolution = Column(String(32), nullable=True)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(512), nullable=False)
+    file_size = Column(BigInteger, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "admin_id": self.admin_id,
+            "std": self.std,
+            "subject": self.subject,
+            "sem": self.sem,
+            "board": self.board,
+            "chapter_number": self.chapter_number,
+            "chapter_title": self.chapter_title,
+            "chapter_title_override": self.chapter_title_override,
+            "topic_title_override": self.topic_title_override,
+            "video_duration_minutes": self.video_duration_minutes,
+            "video_resolution": self.video_resolution,
+            "file_name": self.file_name,
+            "file_path": self.file_path,
+            "file_size": self.file_size,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+class LectureGen(Base):
+    """Model for storing generated lectures"""
+    __tablename__ = "lecture_gen"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, nullable=False, index=True)
+    material_id = Column(Integer, nullable=False, index=True)
+    lecture_uid = Column(String(64), nullable=False, unique=True, index=True)
+    # The underlying column is still named "lecture_title" in the database; keep
+    # that name until a migration is run, but expose it in code as chapter_title.
+    chapter_title = Column("lecture_title", String(255), nullable=False)
+    lecture_link = Column(String(512), nullable=False)  # JSON URL will be stored here
+    lecture_data = Column(JSON, nullable=True)
+
+    subject = Column(String(128), nullable=True)
+    std = Column(String(32), nullable=True)
+    sem = Column(String(32), nullable=True)
+    board = Column(String(64), nullable=True)
+    lecture_shared = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "admin_id": self.admin_id,
+            "material_id": self.material_id,
+            "lecture_uid": self.lecture_uid,
+            "chapter_title": self.chapter_title,
+            "lecture_link": self.lecture_link,
+            "subject": self.subject,
+            "std": self.std,
+            "sem": self.sem,
+            "board": self.board,
+            "lecture_shared": self.lecture_shared,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }

@@ -1,0 +1,782 @@
+"""
+Lecture Routes - FastAPI API Endpoints
+Handles HTTP requests for lecture operations
+"""
+import os
+from dotenv import load_dotenv
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, HTTPException, status, Depends, Query
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+from app.schemas.lecture_schema import (
+    CreateLectureRequest,
+    AskQuestionRequest,
+    LectureResponse,
+    LectureSummaryResponse,
+    LectureShareRequest,
+    LectureShareResponse,
+    LectureShareDeleteResponse,
+    SharedLectureSummary,
+    AnswerResponse,
+    ErrorResponse,
+    GenerationStatus,
+)
+from app.repository.lecture_repository import LectureRepository
+from app.services.lecture_generation_service import GroqService
+from app.services.lecture_share_service import LectureShareService
+from app.schemas.admin_schema import WorkType
+from app.utils.dependencies import member_required
+from app.database import get_db
+load_dotenv()
+
+# ============================================================================
+# ROUTER SETUP
+# ============================================================================
+
+router = APIRouter(
+    prefix="/lectures",
+    tags=["lectures"],
+    responses={
+        404: {"model": ErrorResponse, "description": "Lecture not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    }
+)
+
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+
+# These should be configured based on your app settings
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+def get_repository(db: Session = Depends(get_db)) -> LectureRepository:
+    """Dependency to get repository instance."""
+    return LectureRepository(db)
+
+def get_groq_service() -> GroqService:
+    """Dependency to get Groq service instance."""
+    return GroqService(api_key=GROQ_API_KEY)
+
+def get_share_service(db: Session = Depends(get_db)) -> LectureShareService:
+    return LectureShareService(db)
+
+
+# ============================================================================
+# LECTURE CRUD ENDPOINTS
+# ============================================================================
+
+@router.post(
+    "/create",
+    response_model=LectureResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new lecture from text",
+    description="Generate a complete lecture with slides from source text using AI"
+)
+async def create_lecture(
+    request: CreateLectureRequest,
+    repository: LectureRepository = Depends(get_repository),
+    groq_service: GroqService = Depends(get_groq_service),
+) -> LectureResponse:
+    """
+    Create a new lecture from text content.
+    
+    - **text**: Source text content (minimum 50 characters)
+    - **language**: English, Hindi, or Gujarati
+    - **duration**: Requested duration in minutes (10-120)
+    - **style**: Teaching style (default: storytelling)
+    - **title**: Lecture title
+    - **metadata**: Optional additional metadata
+    """
+    try:
+        # Generate lecture content using AI
+        lecture_data = await groq_service.generate_lecture_content(
+            text=request.text,
+            language=request.language,
+            duration=request.duration,
+            style=request.style,
+        )
+        
+        slides = lecture_data.get("slides", [])
+        if not slides:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate lecture slides"
+            )
+        
+        # Build context from narrations
+        context = "\n\n".join(
+            slide.get("narration", "")
+            for slide in slides
+            if slide.get("narration")
+        )
+        
+        # Save to repository
+        record = await repository.create_lecture(
+            title=request.title,
+            language=request.language,
+            style=request.style,
+            duration=request.duration,
+            slides=slides,
+            context=context,
+            text=request.text,
+            metadata=request.metadata,
+            fallback_used=lecture_data.get("fallback_used", False),
+        )
+        
+        # Generate JSON file URL with class and subject
+        lecture_id = record.get("lecture_id", "")
+        metadata = request.metadata or {}
+        
+        # Get class and subject from metadata
+        std = metadata.get("std") or metadata.get("class") or "general"
+        subject = metadata.get("subject") or "lecture"
+        
+        # Create URL slug
+        std_slug = std.replace(" ", "_").lower()
+        subject_slug = subject.replace(" ", "_").lower()
+        
+        # JSON file URL format: /lectures/{class}/{subject}/{lecture_id}.json
+        lecture_json_url = f"/lectures/{std_slug}/{subject_slug}/{lecture_id}.json"
+        
+        # Add URL to record
+        record["lecture_url"] = lecture_json_url
+        
+        # Print to terminal
+        print(f"\n{'='*60}")
+        print(f" LECTURE GENERATED SUCCESSFULLY")
+        print(f"{'='*60}")
+        print(f"Lecture ID: {lecture_id}")
+        print(f"Class: {std}")
+        print(f"Subject: {subject}")
+        print(f"Title: {request.title}")
+        print(f"Language: {request.language}")
+        print(f"JSON URL: {lecture_json_url}")
+        print(f"Full Path: https://yourdomain.com{lecture_json_url}")
+        print(f"Total Slides: {len(slides)}")
+        print(f"{'='*60}\n")
+        
+        return LectureResponse(**record)
+        
+    except Exception as e:
+        print(f" Error creating lecture: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create lecture: {str(e)}"
+        )
+
+@router.post(
+    "/{lecture_id}/share",
+    response_model=LectureShareResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Share a lecture with students in a class",
+)
+async def share_lecture(
+    lecture_id: str,
+    payload: LectureShareRequest,
+    current_user: Dict[str, Any] = Depends(member_required(WorkType.LECTURE)),
+    share_service: LectureShareService = Depends(get_share_service),
+) -> LectureShareResponse:
+    result = await share_service.share_lecture(
+        lecture_id=lecture_id,
+        payload=payload,
+        shared_by=str(current_user.get("id")),
+        admin_id=current_user.get("admin_id"),
+    )
+    return LectureShareResponse(**result)
+
+
+@router.get(
+    "/shared",
+    response_model=List[SharedLectureSummary],
+    summary="List all shared lectures",
+    description="Retrieve lectures that have been shared with students",
+)
+async def list_shared_lectures(
+    std: Optional[str] = Query(None, description="Filter by standard/class"),
+    subject: Optional[str] = Query(None, description="Filter by subject"),
+    current_user: Dict[str, Any] = Depends(member_required(WorkType.LECTURE)),
+    share_service: LectureShareService = Depends(get_share_service),
+) -> List[SharedLectureSummary]:
+    admin_id = current_user.get("admin_id")
+    records = await share_service.list_shared_lectures(
+        admin_id=admin_id,
+        std=std,
+        subject=subject,
+    )
+    return [SharedLectureSummary(**record) for record in records]
+
+
+@router.delete(
+    "/{lecture_id}/shared",
+    response_model=LectureShareDeleteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delete shared lecture records",
+    description="Remove all share entries for a lecture and mark it as not shared",
+)
+async def delete_shared_lecture(
+    lecture_id: str,
+    current_user: Dict[str, Any] = Depends(member_required(WorkType.LECTURE)),
+    share_service: LectureShareService = Depends(get_share_service),
+) -> LectureShareDeleteResponse:
+    admin_id = current_user.get("admin_id")
+    result = await share_service.delete_shared_lecture(
+        lecture_id=lecture_id,
+        admin_id=admin_id,
+    )
+    return LectureShareDeleteResponse(**result)
+
+
+@router.get(
+    "/{lecture_id}",
+    response_model=LectureResponse,
+    summary="Get lecture by ID",
+    description="Retrieve complete lecture data including all slides"
+)
+async def get_lecture(
+    lecture_id: str,
+    repository: LectureRepository = Depends(get_repository),
+) -> LectureResponse:
+    """
+    Retrieve a lecture by its unique ID.
+    
+    - **lecture_id**: Unique lecture identifier
+    """
+    try:
+        record = await repository.get_lecture(lecture_id)
+        return LectureResponse(**record)
+        
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lecture {lecture_id} not found"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving lecture: {str(e)}"
+        )
+
+
+@router.get(
+    "/",
+    response_model=List[LectureSummaryResponse],
+    summary="List all lectures",
+    description="Get a list of all lectures with optional filtering"
+)
+async def list_lectures(
+    language: Optional[str] = Query(None, description="Filter by language"),
+    std: Optional[str] = Query(None, description="Filter by standard/class"),
+    subject: Optional[str] = Query(None, description="Filter by subject"),
+    division: Optional[str] = Query(None, description="Filter by division/section"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum results"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    repository: LectureRepository = Depends(get_repository),
+) -> List[LectureSummaryResponse]:
+    """
+    List all lectures with pagination and filtering.
+    - *language*: Optional filter by language (English, Hindi, Gujarati)
+    - *std*: Optional filter by standard/class
+    - *subject*: Optional filter by subject
+    - *division*: Optional filter by division/section
+    - *limit*: Maximum number of results (1-500)
+    - *offset*: Number of results to skip for pagination
+    """
+    try:
+        lectures = await repository.list_lectures(
+            language=language,
+            std=std,
+            subject=subject,
+            division=division,
+            limit=limit,
+            offset=offset,
+        )
+        return [LectureSummaryResponse(**lecture) for lecture in lectures]
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error listing lectures: {str(e)}"
+        )
+
+@router.delete(
+    "/{lecture_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a lecture",
+    description="Permanently delete a lecture and all its associated files"
+)
+async def delete_lecture(
+    lecture_id: str,
+    repository: LectureRepository = Depends(get_repository),
+) -> None:
+    """
+    Delete a lecture permanently.
+    - **lecture_id**: Lecture to delete
+    """
+    try:
+        deleted = await repository.delete_lecture(lecture_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Lecture {lecture_id} not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting lecture: {str(e)}"
+        )
+        
+@router.delete(
+    "/",
+    response_model=Dict[str, Any],
+    summary="Delete lectures by class and subject",
+    description="Remove all lectures for a given standard and subject (optionally division)."
+)
+async def bulk_delete_lectures(
+    std: str = Query(..., description="Class/standard identifier"),
+    subject: str = Query(..., description="Subject identifier"),
+    division: Optional[str] = Query(None, description="Division/section identifier"),
+    lecture_id: Optional[str] = Query(None, description="Specific lecture ID to delete within the filters"),
+    current_user: Dict[str, Any] = Depends(member_required(WorkType.LECTURE)),
+    repository: LectureRepository = Depends(get_repository),
+) -> Dict[str, Any]:
+    try:
+        deleted = await repository.delete_lectures_by_metadata(
+            std=std,
+            subject=subject,
+            division=division,
+            lecture_id=lecture_id,
+        )
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No lectures found for provided filters",
+            )
+        return {
+            "status": True,
+            "message": "Lectures deleted successfully",
+            "data": {
+                "deleted_count": len(deleted),
+                "lectures": deleted,
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting lectures: {exc}",
+        )
+
+# ============================================================================
+# QUESTION & ANSWER ENDPOINTS
+# ============================================================================
+
+@router.post(
+    "/ask",
+    response_model=AnswerResponse,
+    summary="Ask a question about a lecture",
+    description="Get AI-powered answers to questions about lecture content"
+)
+async def ask_question(
+    request: AskQuestionRequest,
+    repository: LectureRepository = Depends(get_repository),
+    groq_service: GroqService = Depends(get_groq_service),
+) -> AnswerResponse:
+    """
+    Ask a question about a lecture or edit slide content.
+    
+    - **lecture_id**: Lecture to query
+    - **question**: Question text or edit command
+    - **answer_type**: Response format (text or json)
+    - **is_edit_command**: Whether this is an edit command
+    - **context_override**: Optional context override
+    """
+    try:
+        # Get lecture for context
+        record = await repository.get_lecture(request.lecture_id)
+        
+        context = request.context_override or record.get("context", "")
+        language = record.get("language", "English")
+        
+        # Get answer from AI
+        response = await groq_service.answer_question(
+            question=request.question,
+            context=context,
+            language=language,
+            answer_type=request.answer_type,
+            is_edit_command=request.is_edit_command,
+        )
+        
+        # Handle different response types
+        if isinstance(response, dict):
+            return AnswerResponse(**response)
+        else:
+            return AnswerResponse(answer=str(response))
+            
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lecture {request.lecture_id} not found"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing question: {str(e)}"
+        )
+
+
+# ============================================================================
+# SLIDE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@router.get(
+    "/{lecture_id}/slides/{slide_number}",
+    summary="Get a specific slide",
+    description="Retrieve details of a specific slide from a lecture"
+)
+async def get_slide(
+    lecture_id: str,
+    slide_number: int,
+    repository: LectureRepository = Depends(get_repository),
+) -> Dict[str, Any]:
+    """
+    Get a specific slide from a lecture.
+    
+    - **lecture_id**: Lecture containing the slide
+    - **slide_number**: Slide number (1-indexed)
+    """
+    try:
+        record = await repository.get_lecture(lecture_id)
+        slides = record.get("slides", [])
+        
+        for slide in slides:
+            if slide.get("number") == slide_number:
+                return slide
+        
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Slide {slide_number} not found in lecture {lecture_id}"
+        )
+        
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lecture {lecture_id} not found"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving slide: {str(e)}"
+        )
+
+
+@router.patch(
+    "/{lecture_id}/slides/{slide_number}",
+    summary="Update a slide",
+    description="Update specific fields of a slide"
+)
+async def update_slide(
+    lecture_id: str,
+    slide_number: int,
+    updates: Dict[str, Any],
+    repository: LectureRepository = Depends(get_repository),
+) -> Dict[str, Any]:
+    """
+    Update a slide's content.
+    
+    - **lecture_id**: Lecture containing the slide
+    - **slide_number**: Slide number to update
+    - **updates**: Dictionary of fields to update
+    """
+    try:
+        record = await repository.update_slide(
+            lecture_id=lecture_id,
+            slide_number=slide_number,
+            slide_updates=updates,
+        )
+        
+        # Return updated slide
+        for slide in record.get("slides", []):
+            if slide.get("number") == slide_number:
+                return slide
+        
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Slide {slide_number} not found"
+        )
+        
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lecture {lecture_id} not found"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating slide: {str(e)}"
+        )
+
+
+# ============================================================================
+# UTILITY ENDPOINTS
+# ============================================================================
+
+@router.get(
+    "/stats/summary",
+    summary="Get lecture statistics",
+    description="Get overall statistics about stored lectures"
+)
+async def get_stats(
+    repository: LectureRepository = Depends(get_repository),
+) -> Dict[str, Any]:
+    """Get statistics about all lectures."""
+    try:
+        stats = await repository.get_lecture_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting stats: {str(e)}"
+        )
+
+
+@router.get(
+    "/{lecture_id}/source",
+    summary="Get source text",
+    description="Retrieve the original source text used to generate the lecture"
+)
+async def get_source_text(
+    lecture_id: str,
+    repository: LectureRepository = Depends(get_repository),
+) -> Dict[str, str]:
+    """
+    Get the original source text for a lecture.
+    
+    - **lecture_id**: Lecture ID
+    """
+    try:
+        text = await repository.get_source_text(lecture_id)
+        return {"lecture_id": lecture_id, "source_text": text}
+        
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Source text not found for lecture {lecture_id}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving source text: {str(e)}"
+        )
+
+
+@router.get(
+    "/{lecture_id}/play",
+    summary="Prepare playback payload",
+    description="Return narration script and slide segments for lecture playback"
+)
+async def get_playback_payload(
+    lecture_id: str,
+    repository: LectureRepository = Depends(get_repository),
+) -> Dict[str, Any]:
+    """Return structured playback information for the requested lecture."""
+    try:
+        await repository.record_play(lecture_id)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lecture {lecture_id} not found"
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error preparing playback payload: {exc}"
+        ) from exc
+
+    record = await repository.get_lecture(lecture_id)
+    # slides = record.get("slides", []) or []
+    # playback_segments: List[Dict[str, Any]] = []
+
+    # for slide in slides:
+    #     narration = slide.get("narration")
+    #     if not narration:
+    #         continue
+
+    #     playback_segments.append(
+    #         {
+    #             "slide_number": slide.get("number"),
+    #             "title": slide.get("title"),
+    #             "narration": narration,
+    #         }
+    #     )
+
+    # if not playback_segments:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="Lecture does not contain narration to play"
+    #     )
+
+    # combined_script = "\n\n".join(
+    #     f"Slide {segment.get('slide_number')}: {segment.get('title')}\n{segment.get('narration')}"
+    #     for segment in playback_segments
+    # )
+
+    # return {
+    #     "lecture_id": lecture_id,
+    #     "title": record.get("title"),
+    #     "language": record.get("language"),
+    #     "metadata": record.get("metadata", {}),
+    #     "playback": {
+    #         "segments": playback_segments,
+    #         "combined_script": combined_script,
+    #     },
+    #     "lecture_url": record.get("lecture_url"),
+
+    requested_id = str(lecture_id)
+    lecture_url = record.get("lecture_url")
+
+    if lecture_url:
+        prefix, sep, filename = lecture_url.rpartition("/")
+        if sep:
+            name, dot, ext = filename.partition(".")
+            if dot:
+                lecture_url = f"{prefix}/{requested_id}.{ext}"
+            else:
+                lecture_url = f"{prefix}/{requested_id}"
+    if not lecture_url:
+        metadata = record.get("metadata") or {}
+        std_value = (metadata.get("std") or metadata.get("class") or "general").strip().lower().replace(" ", "_")
+        subject_value = (metadata.get("subject") or "lecture").strip().lower().replace(" ", "_")
+        lecture_url = f"/lectures/{std_value}/{subject_value}/{requested_id}.json"
+
+    return {
+        "lecture_id": requested_id,
+        "title": record.get("title"),
+        "lecture_url": lecture_url,
+    }
+
+
+@router.post(
+    "/{lecture_id}/regenerate",
+    response_model=LectureResponse,
+    summary="Regenerate lecture content",
+    description="Regenerate a lecture using the same source text but with new AI generation"
+)
+async def regenerate_lecture(
+    lecture_id: str,
+    language: Optional[str] = None,
+    duration: Optional[int] = None,
+    repository: LectureRepository = Depends(get_repository),
+    groq_service: GroqService = Depends(get_groq_service),
+) -> LectureResponse:
+    """
+    Regenerate a lecture with new content.
+    
+    - **lecture_id**: Lecture to regenerate
+    - **language**: Optional new language (uses original if not provided)
+    - **duration**: Optional new duration (uses original if not provided)
+    """
+    try:
+        # Get original lecture
+        original = await repository.get_lecture(lecture_id)
+        source_text = await repository.get_source_text(lecture_id)
+        
+        # Use provided params or fall back to originals
+        new_language = language or original.get("language", "English")
+        new_duration = duration or original.get("requested_duration", 30)
+        
+        # Generate new content
+        lecture_data = await groq_service.generate_lecture_content(
+            text=source_text,
+            language=new_language,
+            duration=new_duration,
+            style=original.get("style", "storytelling"),
+        )
+        
+        slides = lecture_data.get("slides", [])
+        context = "\n\n".join(
+            slide.get("narration", "")
+            for slide in slides
+            if slide.get("narration")
+        )
+        
+        # Update lecture
+        updates = {
+            "language": new_language,
+            "requested_duration": new_duration,
+            "estimated_duration": lecture_data.get("estimated_duration"),
+            "slides": slides,
+            "context": context,
+            "total_slides": len(slides),
+            "fallback_used": lecture_data.get("fallback_used", False),
+        }
+        
+        record = await repository.update_lecture(lecture_id, updates)
+        
+        # Generate JSON URL again after regeneration
+        metadata = original.get("metadata", {})
+        std = metadata.get("std") or metadata.get("class") or "general"
+        subject = metadata.get("subject") or "lecture"
+        
+        std_slug = std.replace(" ", "_").lower()
+        subject_slug = subject.replace(" ", "_").lower()
+        
+        # JSON file URL format
+        lecture_json_url = f"/lectures/{std_slug}/{subject_slug}/{lecture_id}.json"
+        
+        record["lecture_url"] = lecture_json_url
+        
+        # Print to terminal
+        print(f"\n{'='*60}")
+        print(f"🔄 LECTURE REGENERATED SUCCESSFULLY")
+        print(f"{'='*60}")
+        print(f"Lecture ID: {lecture_id}")
+        print(f"Class: {std}")
+        print(f"Subject: {subject}")
+        print(f"New Language: {new_language}")
+        print(f"JSON URL: {lecture_json_url}")
+        print(f"Full Path: https://yourdomain.com{lecture_json_url}")
+        print(f"{'='*60}\n")
+        
+        return LectureResponse(**record)
+        
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lecture {lecture_id} not found"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error regenerating lecture: {str(e)}"
+        )
+
+
+# ============================================================================
+# HEALTH CHECK
+# ============================================================================
+
+@router.get(
+    "/health",
+    tags=["health"],
+    summary="Health check",
+    description="Check if the lecture service is running"
+)
+async def health_check(
+    groq_service: GroqService = Depends(get_groq_service),
+) -> Dict[str, Any]:
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "service": "lecture_generation",
+        "groq_configured": groq_service.configured,
+    }

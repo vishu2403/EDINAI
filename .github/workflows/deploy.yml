@@ -1,0 +1,62 @@
+name: Build and Deploy (AWS Free Tier)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  IMAGE_TAG: ${{ github.sha }}
+  CONTAINER_NAME: inai-backend
+  DEPLOYMENT_SSM_DOCUMENT: ${{ secrets.DEPLOYMENT_SSM_DOCUMENT }}
+  TARGET_INSTANCE_ID: ${{ secrets.TARGET_INSTANCE_ID }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Trigger deployment on EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --document-name "$DEPLOYMENT_SSM_DOCUMENT" \
+            --instance-ids "$TARGET_INSTANCE_ID" \
+            --comment "Deploying $IMAGE_TAG" \
+            --parameters '{"commands":["/opt/app/deploy.sh '"$IMAGE_TAG"'"]}' \
+            --output text

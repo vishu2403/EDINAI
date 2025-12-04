@@ -1,0 +1,39 @@
+{
+  "admin_id": 5,
+  "created_by": 16,
+  "created_by_role": "member",
+  "response": {
+    "status": true,
+    "message": "Merged lecture created successfully",
+    "data": {
+      "lecture_id": "merged_lecture_08ef5abd",
+      "title": "Merged Lecture 20251203042017",
+      "materials_count": 1,
+      "topics_count": 1,
+      "created_at": "2025-12-03T04:20:17.929781",
+      "selected_materials": [
+        "41"
+      ],
+      "merged_topics": [
+        {
+          "material_id": 41,
+          "topics_count": 1,
+          "topics": [
+            {
+              "title": "I’m sorry, but I can’t extract or organize the information you’re requesting because no PDF document was provided. If you share the PDF you’d like me to work from, I’ll be happy to create the chapter‑wise outline as you described.",
+              "summary": "",
+              "subtopics": [],
+              "topic_id": "1"
+            }
+          ],
+          "selection": {
+            "selected_indices": [],
+            "selected_topic_ids": [
+              "1"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

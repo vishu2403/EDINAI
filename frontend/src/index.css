@@ -1,0 +1,218 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-dark-border;
+  }
+  
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply text-dark-text-primary;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-card;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+}
+
+@layer components {
+  /* Button Components */
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-glow focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-bg;
+  }
+  
+  .btn-secondary {
+    @apply bg-dark-card hover:bg-gray-700 text-dark-text-primary font-medium py-3 px-6 rounded-xl border border-dark-border transition-all duration-200 hover:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-dark-bg;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-dark-bg;
+  }
+  
+  .btn-ghost {
+    @apply text-dark-text-secondary hover:text-dark-text-primary hover:bg-dark-card font-medium py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-dark-bg;
+  }
+  
+  /* Input Components */
+  .input-primary {
+    @apply w-full bg-dark-card border border-dark-border text-dark-text-primary placeholder-dark-text-muted rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200;
+  }
+  
+  .input-error {
+    @apply border-red-500 focus:ring-red-500 focus:border-red-500;
+  }
+  
+  /* Card Components */
+  .card {
+    @apply bg-dark-card border border-dark-border rounded-2xl shadow-neumorphic;
+  }
+  
+  .card-hover {
+    @apply card hover:shadow-neumorphic transition-all duration-300 hover:scale-[1.02];
+  }
+  
+  .card-interactive {
+    @apply card-hover cursor-pointer hover:border-primary-500/30;
+  }
+  
+  /* Neumorphic Components */
+  .neumorphic {
+    @apply bg-gradient-to-br from-dark-card to-gray-800 shadow-neumorphic;
+  }
+  
+  .neumorphic-inset {
+    @apply bg-gradient-to-br from-gray-800 to-dark-card shadow-neumorphic-inset;
+  }
+  
+  /* Text Components */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-400 to-blue-500 bg-clip-text text-transparent;
+  }
+  
+  /* Animation Classes */
+  .animate-in {
+    @apply animate-fade-in;
+  }
+  
+  .animate-slide-up {
+    @apply animate-slide-up;
+  }
+  
+  /* Loading Spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-gray-600 border-t-primary-500;
+  }
+  
+  /* Custom Checkbox */
+  .checkbox {
+    @apply appearance-none w-5 h-5 bg-dark-card border border-dark-border rounded checked:bg-primary-600 checked:border-primary-600 relative cursor-pointer transition-all duration-200;
+  }
+  
+  .checkbox:checked::after {
+    content: '✓';
+    @apply absolute inset-0 flex items-center justify-center text-white text-xs font-bold;
+  }
+  
+  /* File Upload Area */
+  .file-upload-area {
+    @apply border-2 border-dashed border-dark-border rounded-xl p-8 text-center hover:border-primary-500 transition-all duration-200 cursor-pointer bg-dark-card/50;
+  }
+  
+  .file-upload-area.dragover {
+    @apply border-primary-500 bg-primary-500/10;
+  }
+  
+  /* Progress Bar */
+  .progress-bar {
+    @apply w-full bg-gray-700 rounded-full h-2 overflow-hidden;
+  }
+  
+  .progress-bar-fill {
+    @apply h-full bg-gradient-to-r from-primary-500 to-blue-500 transition-all duration-300;
+  }
+  
+  /* Mobile Responsiveness */
+  @media (max-width: 768px) {
+    .card {
+      @apply mx-4;
+    }
+    
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger {
+      @apply w-full;
+    }
+  }
+}
+
+@layer utilities {
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10;
+  }
+  
+  /* Text shadow */
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Hide scrollbar */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Custom thin scrollbar for topics panel */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .scrollbar-thumb-primary-400\/30::-webkit-scrollbar-thumb {
+    @apply bg-primary-400/30 rounded-full;
+  }
+  
+  .scrollbar-thumb-primary-400\/30::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-400/50;
+  }
+  
+  .scrollbar-track-dark-bg\/20::-webkit-scrollbar-track {
+    @apply bg-dark-bg/20 rounded-full;
+  }
+  
+  /* Gradient borders */
+  .gradient-border {
+    @apply bg-gradient-to-r from-primary-500 to-blue-500 p-[1px] rounded-xl;
+  }
+  
+  .gradient-border-content {
+    @apply bg-dark-card rounded-[11px] w-full h-full;
+  }
+}
+
+/* Custom animations for specific components */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Loading states */
+.loading-skeleton {
+  @apply bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 bg-[length:200%_100%] animate-pulse;
+  animation: loading-skeleton 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-skeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
