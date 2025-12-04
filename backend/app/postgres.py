@@ -34,11 +34,23 @@ from .config import settings
 
 def _psycopg_conninfo() -> str:
     """Return a psycopg-friendly DSN string derived from DATABASE_URL."""
-
     raw_url = settings.database_url
+    
+    # Handle Pydantic's PostgresDsn type
+    if hasattr(raw_url, 'unicode_string'):
+        raw_url = raw_url.unicode_string()
+    
+    # Convert to string if not already
+    raw_url = str(raw_url)
+    
+    # Ensure postgres:// is converted to postgresql://
+    if raw_url.startswith('postgres://'):
+        raw_url = raw_url.replace('postgres://', 'postgresql://', 1)
+    
     try:
         url_obj = make_url(raw_url)
     except Exception:
+        # If make_url fails, return the raw URL as a string
         return raw_url
 
     driver = url_obj.drivername
@@ -55,15 +67,32 @@ def _psycopg_conninfo() -> str:
 @contextmanager
 def get_connection() -> Iterator:
     """Yield a DB connection (psycopg or psycopg2)."""
-    conn = connect(_psycopg_conninfo())
+    conn_info = _psycopg_conninfo()
+    
+    # Convert URL object to string if needed
+    if hasattr(conn_info, 'render_as_string'):
+        conn_info = conn_info.render_as_string(hide_password=False)
+    
+    conn = None
     try:
+        if _USE_PSYCOPG3:
+            # For psycopg v3
+            conn = connect(conn_info)
+        else:
+            # For psycopg2
+            import psycopg2
+            conn = psycopg2.connect(conn_info)
+            
         yield conn
         conn.commit()
-    except Exception:
-        conn.rollback()
+    except Exception as e:
+        logger.error(f"Database connection error: {str(e)}")
+        if conn:
+            conn.rollback()
         raise
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 @contextmanager
 def get_pg_cursor(*, dict_rows: bool = True):
     """Yield a cursor; supports dict rows for both drivers."""

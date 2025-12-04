@@ -1,23 +1,71 @@
 """Centralized configuration for the modular backend example."""
 from __future__ import annotations
 
+import os
 from functools import lru_cache
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, PostgresDsn, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
+    # App Settings
     app_name: str = Field("EDINAI Modular Backend", env="APP_NAME")
-    database_url: str = Field(
-        "postgresql://postgres:postgres@localhost:5432/inai", env="DATABASE_URL"
+    debug: bool = Field(False, env="DEBUG")
+    environment: str = Field("production", env="ENVIRONMENT")
+    
+    # Database Configuration
+    database_url: PostgresDsn = Field(
+        "postgresql+psycopg2://postgres:postgres@localhost:5432/inai", 
+        env="DATABASE_URL"
     )
-    secret_key: str = Field("super-secret-key", env="SECRET_KEY")
+    database_pool_size: int = Field(20, env="DATABASE_POOL_SIZE")
+    database_max_overflow: int = Field(10, env="DATABASE_MAX_OVERFLOW")
+    database_pool_recycle: int = Field(3600, env="DATABASE_POOL_RECYCLE")
+    database_pool_timeout: int = Field(30, env="DATABASE_POOL_TIMEOUT")
+    
+    # Security
+    secret_key: str = Field("your-secret-key-change-in-production", env="SECRET_KEY")
+    algorithm: str = Field("HS256", env="ALGORITHM")
     access_token_expire_minutes: int = Field(60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
     access_token_expire_days: int = Field(7, env="ACCESS_TOKEN_EXPIRE_DAYS")
+    
+    # CORS
+    cors_origins: List[str] = Field(
+        ["http://localhost:3000", "http://127.0.0.1:3000"], 
+        env="CORS_ORIGINS"
+    )
+    
+    # API Settings
+    api_v1_prefix: str = "/api/v1"
+    
+    # File Uploads
+    max_upload_size: int = 10 * 1024 * 1024  # 10MB
+    allowed_file_types: List[str] = ["image/jpeg", "image/png", "application/pdf"]
+    
+    # Model Config
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    
+    @validator("database_url", pre=True)
+    def assemble_db_connection(cls, v: str | PostgresDsn) -> str | PostgresDsn:
+        if isinstance(v, str) and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+psycopg2://", 1)
+        return v
+    
+    @validator("cors_origins", pre=True)
+    def assemble_cors_origins(cls, v: str | List[str]) -> List[str] | str:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
+    
+    @property
+    def is_development(self) -> bool:
+        return self.environment == "development"
     refresh_token_expire_days: int = Field(7, env="REFRESH_TOKEN_EXPIRE_DAYS")
     algorithm: str = Field("HS256", env="ALGORITHM")
     allowed_email_domains_raw: str = Field("gmail.com", env="ALLOWED_EMAIL_DOMAINS")

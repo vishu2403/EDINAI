@@ -11,21 +11,35 @@ from sqlalchemy.exc import OperationalError
 
 from .config import settings
 
-def _normalize_database_url(raw_url: str) -> str:
-    """Ensure PostgreSQL URLs use the psycopg driver."""
+def _normalize_database_url(raw_url) -> str:
+    """Convert database URL to SQLAlchemy format if needed."""
+    if hasattr(raw_url, 'unicode_string'):
+        # Handle Pydantic's PostgresDsn type
+        url_str = raw_url.unicode_string()
+    else:
+        # Handle string URLs
+        url_str = str(raw_url)
+        
+    # Ensure we're using psycopg2 driver
+    if url_str.startswith("postgresql://"):
+        return "postgresql+psycopg2://" + url_str[len("postgresql://"):]
+    if url_str.startswith("postgres://"):
+        return "postgresql+psycopg2://" + url_str[len("postgres://"):]
+    return url_str
 
-    if raw_url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + raw_url[len("postgresql://") :]
-    if raw_url.startswith("postgres://"):
-        return "postgresql+psycopg://" + raw_url[len("postgres://") :]
-    return raw_url
 
 logger = logging.getLogger(__name__)
 
-# engine = create_engine(settings.database_url, pool_pre_ping=True)
+# Create database engine with connection pooling
 database_url = _normalize_database_url(settings.database_url)
-
-engine = create_engine(database_url, pool_pre_ping=True)
+engine = create_engine(
+    database_url,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    pool_recycle=settings.database_pool_recycle,
+    pool_timeout=settings.database_pool_timeout,
+    pool_pre_ping=True
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
