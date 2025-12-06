@@ -1,0 +1,38 @@
+1. Introduction
+Statistical simulation refers to the use of random sampling techniques to model and analyze complex systems or stochastic processes. It helps approximate results that are otherwise difficult to compute analytically.
+
+2. Motivation
+Analytical solutions to real‑world problems are often infeasible due to their mathematical complexity. Statistical simulation allows us to understand uncertainty, test hypotheses, and evaluate the performance of statistical estimators.
+
+3. Basic Concepts
+- Random number generation using probability distributions: Statistical simulation begins with generating random numbers that follow specified probability distributions.
+- Sampling from populations or theoretical distributions: It involves drawing samples either from actual populations or from theoretical distribution models.
+- Repeated trials to approximate expected values: By conducting many repeated trials, one can approximate expected values of quantities of interest.
+- Using simulation outcomes for inference and prediction: The results of the simulation are then used for statistical inference and making predictions.
+
+4. Monte Carlo Simulation
+- Example: Estimation of π using random points inside a unit square. Steps: generate N random points (x, y) in [0,1] × [0,1]; count how many fall inside the unit circle (x² + y² < 1); estimate π as 4 × (points inside circle) / N.
+- Python Example: The Python code creates one million random (x, y) pairs, counts those satisfying x² + y² ≤ 1, and computes the estimate of π with the formula 4 * np.sum(x**2 + y**2 <= 1) / N.
+
+5. Bootstrapping
+- Example: Estimating confidence interval for mean. Steps: draw B bootstrap samples (with replacement) from the observed data; compute the mean for each sample; use the distribution of these means to estimate the standard error and construct confidence intervals.
+- Python Example: The Python snippet generates B bootstrap samples from a data array, calculates the mean of each sample, and obtains the 2.5th and 97.5th percentiles to form a 95 % confidence interval for the mean.
+
+6. Advantages of Statistical Simulation
+- Provides flexibility for complex problems: Simulation can be applied to a wide range of difficult problems where analytical solutions are unavailable.
+- Simplifies uncertainty quantification: It makes it easier to assess and visualize the uncertainty inherent in stochastic systems.
+- Enables visual understanding of stochastic processes: By generating simulated data, one can gain intuitive insight into how random processes behave.
+- Applicable across science, finance, and AI: The techniques are useful in many fields, from scientific research to financial modeling and artificial intelligence.
+
+7. Limitations
+- Can be computationally intensive: Large numbers of iterations may require substantial computing resources.
+- Accuracy depends on number of iterations: The precision of simulation results improves with more repetitions.
+- Random number quality affects results: Poor quality random number generators can lead to biased or inaccurate outcomes.
+
+8. Summary
+Statistical simulation is a powerful tool for approximating complex models using random sampling. Monte Carlo methods and bootstrapping are foundational techniques that provide insights into uncertainty and sampling behavior.
+
+9. References
+- Robert, C.P., & Casella, G. (2010). Monte Carlo Statistical Methods.
+- James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An Introduction to Statistical Learning.
+- NumPy and SciPy Documentation.

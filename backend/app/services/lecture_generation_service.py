@@ -362,19 +362,7 @@ class GroqService:
                 if not slides:
                     failure_reason = "No properly formatted slides found."
                 elif len(slides) != 9:
-                    completed_slides = self._complete_slides_with_fallback(
-                        slides=slides,
-                        language=language,
-                        duration=duration,
-                        text=text,
-                    )
-                    if completed_slides:
-                        print("ℹ️ Completed missing slides with fallback.")
-                        parsed["slides"] = completed_slides
-                        slides = completed_slides
-                        parsed["total_slides"] = len(completed_slides)
-                    else:
-                        failure_reason = f"Expected 9 slides but got {len(slides)}."
+                    failure_reason = f"Expected 9 slides but got {len(slides)}."
                 
                 if language in ["Hindi", "Gujarati"]:
                     self._enforce_minimum_narration(slides, language)
@@ -392,15 +380,9 @@ class GroqService:
                 last_failure = failure_reason
                 print(f"⚠️ Attempt {attempt} failed: {failure_reason}")
             
-            print("⚠️ All attempts failed. Returning fallback.")
-            fallback_result = generate_fallback_content(
-                text=text,
-                language=language,
-                duration=duration,
-            )
-            fallback_result["fallback_used"] = True
-            fallback_result["fallback_reason"] = last_failure or "Unknown issue."
-            return fallback_result
+            error_msg = f"Failed to generate lecture after {max_attempts} attempts. Last error: {last_failure}"
+            print(f"❌ {error_msg}")
+            raise RuntimeError(error_msg)
             
         except Exception as e:
             print(f"\n❌ ERROR: {type(e).__name__}: {str(e)}")

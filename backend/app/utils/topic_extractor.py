@@ -385,6 +385,7 @@ def read_pdf_with_ocrmypdf(pdf_path: Path, ocr_language: str) -> str:
                 progress_bar=True,
                 rotate_pages=True,
                 deskew=True,
+                # image_dpi=1000
             )
         except OCRMissingDependencyError as exc:
             raise RuntimeError(

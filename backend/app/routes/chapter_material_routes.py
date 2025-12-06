@@ -456,6 +456,9 @@ def _prepare_generation_from_material(
     resolved_chapter_title = extracted_chapter_title or ""
     material_subject = material.get("subject") if isinstance(material, dict) else material.subject
     title = resolved_chapter_title or (f"{material_subject} Lecture" if material_subject else "Generated Lecture")
+    # Ensure title is never None or empty
+    if not title or title.isspace():
+        title = "Generated Lecture"
 
     material_id = material.get("id") if isinstance(material, dict) else material.id
     material_std = material.get("std") if isinstance(material, dict) else material.std
@@ -616,6 +619,9 @@ def _prepare_generation_from_merged(
     if override_duration is not None:
         duration = override_duration
     title = response_payload.get("title") or f"Merged Lecture {lecture_id}"
+    # Ensure title is never None or empty
+    if not title or title.isspace():
+        title = f"Merged Lecture {lecture_id}"
 
     if primary_material:
         std_value = (primary_material.get("std") if isinstance(primary_material, dict) else primary_material.std) or "general"
@@ -1797,7 +1803,7 @@ async def get_lecture_audio(
     if not audio_path.exists():
         # Try to generate audio on-demand if it doesn't exist
         try:
-            from app.services.tts_service import EdgeTTSService
+            from app.services.tts_service import GTTSService
             from app.repository.lecture_repository import LectureRepository
             from app.postgres import get_pg_cursor
             
@@ -1846,7 +1852,7 @@ async def get_lecture_audio(
                 )
             
             # Generate audio on-demand
-            tts_service = EdgeTTSService(storage_root=str(storage_base.parent))
+            tts_service = GTTSService(storage_root=str(storage_base.parent))
             audio_path_result = await tts_service.synthesize_text(
                 lecture_id=lecture_id,
                 text=target_slide["narration"],
@@ -2027,64 +2033,8 @@ async def generate_lecture_from_topics(
         print(f"📂 File Path: {lecture_record.get('lecture_path')}")
     print(f"{'='*60}\n")
 
-    # ============================================================================
-    # SAVE TO DATABASE WITH URL
-    # ============================================================================
-    
-    from app.models.chapter_material import LectureGen
-
     material_snapshot = context_payload.get("material_snapshot") or {}
-    log_material_id = material_snapshot.get("id") or 0
-    log_admin_id = current_user.get("id") if current_user.get("role") == "admin" else current_user.get("admin_id")
-    lecture_uid = str(lecture_id) if lecture_id else None
-    if lecture_uid is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Lecture identifier missing; please retry generation",
-        )
-
-    try:
-        db_lecture = LectureGen(
-            admin_id=log_admin_id,
-            material_id=log_material_id,
-            lecture_uid=lecture_uid,
-            chapter_title=context_payload["title"],
-            lecture_link=lecture_json_url,
-            subject=log_context["subject"],
-            std=log_context["std"],
-            sem=log_context["sem"],
-            board=log_context["board"],
-            lecture_data=lecture_record,
-        )
-        
-        db.add(db_lecture)
-        db.commit()
-        db.refresh(db_lecture)
-        
-        # Print database confirmation
-        print(f"\n{'='*60}")
-        print(f"💾 DATABASE RECORD SAVED")
-        print(f"{'='*60}")
-        print(f"DB Record ID: {db_lecture.id}")
-        print(f"Lecture UID: {lecture_uid}")
-        print(f"Material ID: {material_snapshot.get('id')}")
-        print(f"Admin ID: {material_snapshot.get('admin_id') or log_admin_id}")
-        print(f"Class (STD): {material_snapshot.get('std')}")
-        print(f"Subject: {material_snapshot.get('subject')}")
-        print(f"Board: {material_snapshot.get('board')}")
-        print(f"Semester: {material_snapshot.get('sem')}")
-        print(f"Chapter: {material_snapshot.get('chapter_number')}")
-        print(f"Stored JSON URL: {lecture_json_url}")
-        print(f"Database Table: lecture_gen")
-        print(f"{'='*60}\n")
-        
-        lecture_record["db_record_id"] = db_lecture.id
-        lecture_record["db_saved"] = True
-        
-    except Exception as e:
-        logger.error(f"Failed to save lecture to database: {e}")
-        lecture_record["db_saved"] = False
-        lecture_record["db_error"] = str(e)
+    lecture_record["db_saved"] = bool(lecture_record.get("db_record_id"))
 
     return {
         "status": True,

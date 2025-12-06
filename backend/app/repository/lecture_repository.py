@@ -89,7 +89,7 @@ async def create_lecture(
         "admin_id": admin_value,
         "material_id": material_value,
         "lecture_uid": lecture_id,
-        "chapter_title": record.get("title"),
+        "chapter_title": record.get("title") or f"Lecture {lecture_id}",
         "lecture_link": record["lecture_url"],
         "std": std_value,
         "subject": subject_value,
@@ -225,7 +225,7 @@ async def update_lecture(lecture_id: str, updates: Dict[str, Any]) -> Dict[str, 
     record["updated_at"] = datetime.utcnow().isoformat()
 
     metadata = record.get("metadata") or {}
-    chapter_title = record.get("title") or row.get("chapter_title")
+    chapter_title = record.get("title") or row.get("chapter_title") or f"Lecture {row.get('lecture_uid')}"
     lecture_link = record.get("lecture_url") or row.get("lecture_link")
     std = metadata.get("std") or metadata.get("class") or row.get("std")
     subject = metadata.get("subject") or row.get("subject")

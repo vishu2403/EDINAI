@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "language_code": "eng",
+  "language_label": "English",
+  "topics_text": "I’m unable to view or extract text from a PDF file directly. If you can copy the text from the PDF (or provide the relevant sections) into the chat, I’ll be able to organize it chapter‑wise exactly as you described.",
+  "headings": [],
+  "chapter_titles": [
+    "15 mins | Recap of pre-assessment quiz bility to dentify individua Ge proneiency",
+    "45 mins | વં. Traditional ML vs. Generative Al scenarios (Research, Problem Solving)",
+    "60 mins Thought) | |",
+    "60 mins Simulation comparing ChatGPT, Perplexity, suitable GenAl tool (ChatGPT, Gemini, Claude,",
+    "90 mins End-to-end research simulation (market scan or industry research, fact-checking with Perplexity,",
+    "45 mins decks Design client-ready presentations efficiently",
+    "90 mins (Excel + social data) to build data-backed analysis (Excel + social data scraping)",
+    "60 mins Gmail"
+  ],
+  "chapter_title": "15 mins | Recap of pre-assessment quiz bility to dentify individua Ge proneiency",
+  "excerpt": "Session\n\nTime\n\nAl Training: Final TOC\n\nContent\n\nLearning Outcome Statement |\n\nA. Introduction and Recap [2 Hours]\n. . Ability to i ify individual GenAl proficien\n1 15 mins | Recap of pre-assessment quiz bility to dentify individua Ge proneiency\ngaps and align personal learning goals\nRecap of Pre-Read:\na. Evolution from ML to LLMs a. Understand how models like GPT, Claude, and\nb. Architecture, how LLMs learn patterns Gemini process and generate text\nC. Tokenization, parameters and inference b. Identify appropriate use cases for consulting\n2 45 mins | વં. Traditional ML vs. Generative Al scenarios (Research, Problem Solving)\ne. Role of training data, features, and model c. Differentiate between ML models and LLMs\nperformance d. Recognize where predictive vs. generative\nf. Transformers and concept of attention models fit in consulting workflows\ng. Tuning of models / RAG\nAdvanced Prompt Engineering:\na. Advanced prompting strategies (Role . .\nti P P 6 ક नं a. Design prompts to improve accur",
+  "topics": [
+    {
+      "title": "I’m unable to view or extract text from a PDF file directly. If you can copy the text from the PDF (or provide the relevant sections) into the chat, I’ll be able to organize it chapter‑wise exactly as you described.",
+      "summary": "",
+      "subtopics": [],
+      "topic_id": "1"
+    }
+  ]
+}

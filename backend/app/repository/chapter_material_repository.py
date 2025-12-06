@@ -521,12 +521,16 @@ def formatFileSize(bytes):
 def get_chapter_overview_data(admin_id: int) -> List[Dict[str, Any]]:
     """
     Get chapter overview data with lecture information including:
-    - subject, chapter title, topics, lecture size, and video info
+    - subject, chapter title, topics, lecture size, video info
+    - list of generated lectures pulled from lecture_gen table
     """
     query = """
         SELECT 
             cm.id,
             cm.subject,
+            cm.std,
+            cm.sem,
+            cm.board,
             cm.chapter_title,
             cm.chapter_number,
             cm.chapter_title_override,
@@ -534,117 +538,154 @@ def get_chapter_overview_data(admin_id: int) -> List[Dict[str, Any]]:
             cm.video_duration_minutes,
             cm.video_resolution,
             cm.admin_id,
+            cm.created_at AS material_created_at,
+            cm.updated_at AS material_updated_at,
+            lg.id AS lecture_id,
             lg.lecture_link,
             lg.lecture_uid,
-            lg.chapter_title as lecture_chapter_title
+            lg.chapter_title AS lecture_chapter_title,
+            lg.std AS lecture_std,
+            lg.subject AS lecture_subject,
+            lg.sem AS lecture_sem,
+            lg.board AS lecture_board,
+            lg.created_at AS lecture_created_at,
+            lg.updated_at AS lecture_updated_at
         FROM chapter_materials cm
-        LEFT JOIN lecture_gen lg ON lg.material_id = cm.id
+        LEFT JOIN lecture_gen lg 
+            ON lg.material_id = cm.id
+            AND lg.admin_id = cm.admin_id
         WHERE cm.admin_id = %(admin_id)s
-        ORDER BY cm.created_at DESC
+        ORDER BY cm.created_at DESC, lg.created_at DESC NULLS LAST
     """
     
-    results = []
+    storage_base = Path("./storage/lectures")
+    lecture_asset_cache: Dict[str, Dict[str, Any]] = {}
+
+    def _get_lecture_assets(lecture_uid: Optional[str]) -> Dict[str, Any]:
+        if not lecture_uid:
+            return {"json_size": 0, "video": None}
+        if lecture_uid in lecture_asset_cache:
+            return lecture_asset_cache[lecture_uid]
+        json_size = 0
+        video_info = None
+        try:
+            lecture_folder = storage_base / lecture_uid
+            lecture_json_path = lecture_folder / "lecture.json"
+            if lecture_json_path.exists():
+                json_size = lecture_json_path.stat().st_size
+            video_path = lecture_folder / "lecture.mp4"
+            if video_path.exists():
+                video_info = {"size": video_path.stat().st_size, "path": str(video_path)}
+        except Exception:
+            pass
+        lecture_asset_cache[lecture_uid] = {"json_size": json_size, "video": video_info}
+        return lecture_asset_cache[lecture_uid]
+
+    grouped: Dict[int, Dict[str, Any]] = {}
+
     with get_pg_cursor() as cur:
         cur.execute(query, {"admin_id": admin_id})
         rows = cur.fetchall()
     
     for row in rows:
-        # Get topics for this material if they exist
-        topics_data = []
-        extracted_chapter_title = None
-        try:
-            payload, topics_list = read_topics_file_if_exists(row["admin_id"], row["id"])
-            if topics_list:
-                # Take only first few topics as preview
-                topics_data = topics_list[:5]  # Limit to 5 topics for overview
-            # Get chapter title from extracted topics data
-            if payload and payload.get("chapter_title"):
-                extracted_chapter_title = payload.get("chapter_title")
-        except Exception:
-            topics_data = []
-        
-        # Use extracted chapter title if available, otherwise fallback to material chapter_number
-        chapter_title = (
-            row["chapter_title_override"]
-            or extracted_chapter_title
-            or row["chapter_title"]
-            or row["chapter_number"]
+        material_id = row["id"]
+        if material_id not in grouped:
+            topics_data: List[Dict[str, Any]] = []
+            extracted_chapter_title = None
+            try:
+                payload, topics_list = read_topics_file_if_exists(row["admin_id"], material_id)
+                if topics_list:
+                    topics_data = topics_list[:5]
+                if payload and payload.get("chapter_title"):
+                    extracted_chapter_title = payload.get("chapter_title")
+            except Exception:
+                topics_data = []
+
+            chapter_title = (
+                row["chapter_title_override"]
+                or extracted_chapter_title
+                or row["chapter_title"]
+                or row["chapter_number"]
+            )
+
+            grouped[material_id] = {
+                "material_id": material_id,
+                "subject": row["subject"],
+                "std": row["std"],
+                "sem": row["sem"],
+                "board": row["board"],
+                "chapter": chapter_title,
+                "topics": topics_data,
+                "size": "41.1 KB",
+                "video": None,
+                "chapter_title_override": row["chapter_title_override"],
+                "topic_title_override": row["topic_title_override"],
+                "video_duration_minutes": row["video_duration_minutes"],
+                "video_resolution": row["video_resolution"],
+                "generated_lectures": [],
+                "_latest_lecture_ts": None,
+                "_latest_lecture_size": 0,
+                "_latest_video_info": None,
+            }
+
+        lecture_id = row.get("lecture_id")
+        if lecture_id:
+            lecture_assets = _get_lecture_assets(row.get("lecture_uid"))
+            lecture_size_bytes = lecture_assets.get("json_size", 0) or 0
+            video_info = lecture_assets.get("video")
+
+            lecture_payload = {
+                "lecture_id": lecture_id,
+                "lecture_uid": row.get("lecture_uid"),
+                "lecture_title": row.get("lecture_chapter_title"),
+                "lecture_link": row.get("lecture_link"),
+                "subject": row.get("lecture_subject") or row["subject"],
+                "std": row.get("lecture_std") or row["std"],
+                "sem": row.get("lecture_sem") or row["sem"],
+                "board": row.get("lecture_board") or row["board"],
+                "material_id": material_id,
+                "created_at": row.get("lecture_created_at"),
+                "updated_at": row.get("lecture_updated_at"),
+                "lecture_size_bytes": lecture_size_bytes,
+                "lecture_size": formatFileSize(lecture_size_bytes) if lecture_size_bytes else None,
+                "video": video_info,
+            }
+
+            chapter_entry = grouped[material_id]
+            chapter_entry["generated_lectures"].append(lecture_payload)
+
+            lecture_ts = row.get("lecture_created_at")
+            latest_ts = chapter_entry["_latest_lecture_ts"]
+            is_newer = False
+            if lecture_ts and (latest_ts is None or lecture_ts > latest_ts):
+                is_newer = True
+            elif latest_ts is None and not lecture_ts:
+                is_newer = True
+
+            if is_newer:
+                chapter_entry["_latest_lecture_ts"] = lecture_ts
+                chapter_entry["_latest_lecture_size"] = lecture_size_bytes
+                chapter_entry["_latest_video_info"] = video_info
+
+    results: List[Dict[str, Any]] = []
+    for entry in grouped.values():
+        latest_size = entry.pop("_latest_lecture_size", 0)
+        latest_video = entry.pop("_latest_video_info", None)
+        entry.pop("_latest_lecture_ts", None)
+
+        if latest_size:
+            entry["size"] = formatFileSize(latest_size)
+        if latest_video:
+            entry["video"] = latest_video
+
+        entry["generated_lectures"].sort(
+            key=lambda item: item.get("created_at") or datetime.min,
+            reverse=True,
         )
 
-        # Calculate lecture size if lecture exists
-        lecture_size = 0
-        video_info = None
-        if row["lecture_link"]:
-            try:
-                storage_base = Path("./storage/lectures")
-                lecture_json_path = storage_base / row["lecture_uid"] / "lecture.json"
-                if lecture_json_path.exists():
-                    lecture_size = lecture_json_path.stat().st_size
-                    # For video info, we'll assume video exists alongside JSON
-                    video_path = storage_base / row["lecture_uid"] / "lecture.mp4"
-                    if video_path.exists():
-                        video_size = video_path.stat().st_size
-                        video_info = {
-                            "size": video_size,
-                            "path": str(video_path)
-                        }
-            except Exception:
-                pass
-        
-        chapter_data = {
-            "material_id": row["id"],
-            "subject": row["subject"],
-            "chapter": chapter_title,
-            "topics": topics_data,
-            "size": formatFileSize(lecture_size) if lecture_size else "41.1 KB",
-            "video": video_info,
-            "chapter_title_override": row["chapter_title_override"],
-            "topic_title_override": row["topic_title_override"],
-            "video_duration_minutes": row["video_duration_minutes"],
-            "video_resolution": row["video_resolution"],
-        }
-        
-        results.append(chapter_data)
+        results.append(entry)
     
     return results
-
-
-def update_chapter_overview_fields(
-    material_id: int,
-    *,
-    std: Optional[str] = None,
-    subject: Optional[str] = None,
-    sem: Optional[str] = None,
-    board: Optional[str] = None,
-    chapter_number: Optional[str] = None,
-    chapter_title: Optional[str] = None,
-) -> Dict[str, Any]:
-    updates = {}
-    if std is not None:
-        updates["std"] = std.strip()
-    if subject is not None:
-        updates["subject"] = subject.strip()
-    if sem is not None:
-        updates["sem"] = sem.strip()
-    if board is not None:
-        updates["board"] = board.strip()
-    if chapter_number is not None:
-        updates["chapter_number"] = chapter_number.strip()
-    if chapter_title is not None:
-        updates["chapter_title"] = chapter_title.strip()
-
-    if not updates:
-        return {}
-
-    set_clause = ", ".join([f"{k} = %({k})s" for k in updates.keys()])
-    query = f"UPDATE chapter_materials SET {set_clause} WHERE id = %(id)s RETURNING *"
-    updates["id"] = material_id
-
-    with get_pg_cursor() as cur:
-        cur.execute(query, updates)
-        result = cur.fetchone()
-    
-    return result if result else {}
 
 
 # -------------------------

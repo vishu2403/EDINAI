@@ -1,0 +1,168 @@
+{
+  "success": true,
+  "language_code": "eng",
+  "language_label": "English",
+  "topics_text": "1. Introduction\nStatistical simulation refers to the use of random sampling techniques to model and analyze complex systems or stochastic processes. It helps approximate results that are otherwise difficult to compute analytically.\n\n2. Motivation\nAnalytical solutions to real‑world problems are often infeasible due to their mathematical complexity. Statistical simulation allows us to understand uncertainty, test hypotheses, and evaluate the performance of statistical estimators.\n\n3. Basic Concepts\n- Random number generation using probability distributions: Statistical simulation begins with generating random numbers that follow specified probability distributions.\n- Sampling from populations or theoretical distributions: It involves drawing samples either from actual populations or from theoretical distribution models.\n- Repeated trials to approximate expected values: By conducting many repeated trials, one can approximate expected values of quantities of interest.\n- Using simulation outcomes for inference and prediction: The results of the simulation are then used for statistical inference and making predictions.\n\n4. Monte Carlo Simulation\n- Example: Estimation of π using random points inside a unit square. Steps: generate N random points (x, y) in [0,1] × [0,1]; count how many fall inside the unit circle (x² + y² < 1); estimate π as 4 × (points inside circle) / N.\n- Python Example: The Python code creates one million random (x, y) pairs, counts those satisfying x² + y² ≤ 1, and computes the estimate of π with the formula 4 * np.sum(x**2 + y**2 <= 1) / N.\n\n5. Bootstrapping\n- Example: Estimating confidence interval for mean. Steps: draw B bootstrap samples (with replacement) from the observed data; compute the mean for each sample; use the distribution of these means to estimate the standard error and construct confidence intervals.\n- Python Example: The Python snippet generates B bootstrap samples from a data array, calculates the mean of each sample, and obtains the 2.5th and 97.5th percentiles to form a 95 % confidence interval for the mean.\n\n6. Advantages of Statistical Simulation\n- Provides flexibility for complex problems: Simulation can be applied to a wide range of difficult problems where analytical solutions are unavailable.\n- Simplifies uncertainty quantification: It makes it easier to assess and visualize the uncertainty inherent in stochastic systems.\n- Enables visual understanding of stochastic processes: By generating simulated data, one can gain intuitive insight into how random processes behave.\n- Applicable across science, finance, and AI: The techniques are useful in many fields, from scientific research to financial modeling and artificial intelligence.\n\n7. Limitations\n- Can be computationally intensive: Large numbers of iterations may require substantial computing resources.\n- Accuracy depends on number of iterations: The precision of simulation results improves with more repetitions.\n- Random number quality affects results: Poor quality random number generators can lead to biased or inaccurate outcomes.\n\n8. Summary\nStatistical simulation is a powerful tool for approximating complex models using random sampling. Monte Carlo methods and bootstrapping are foundational techniques that provide insights into uncertainty and sampling behavior.\n\n9. References\n- Robert, C.P., & Casella, G. (2010). Monte Carlo Statistical Methods.\n- James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An Introduction to Statistical Learning.\n- NumPy and SciPy Documentation.",
+  "headings": [],
+  "chapter_titles": [
+    "Sampling from populations or theoretical distributions",
+    "Repeated trials to approximate expected values",
+    "Using simulation outcomes for inference and prediction",
+    "Accuracy depends on number of iterations",
+    "Random number quality affects results",
+    "James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An Introduction to Statistical",
+    "NumPy and SciPy Documentation"
+  ],
+  "chapter_title": "Sampling from populations or theoretical distributions",
+  "excerpt": "Statistical Simulation\n\nPosigraduate / MSc Level Lecture Notes\n\n1. Introduction\n\nStatistical simulation refers to the use of random sampling techniques to model and analyze\ncomplex systems or stochastic processes. It helps approximate results that are otherwise difficult to\ncompute analytically.\n\n2. Motivation\n\nAnalytical solutions to real-world problems are often infeasible due to their mathematical\ncomplexity. Statistical simulation allows us to understand uncertainty, test hypotheses, and\nevaluate the performance of statistical estimators.\n\n3. Basic Concepts\n\n| Random number generation using probability distributions\n2 Sampling from populations or theoretical distributions\n\n3 Repeated trials to approximate expected values\n\n4 Using simulation outcomes for inference and prediction\n\n4. Monte Carlo Simulation\n\nMonte Carlo simulation is based on repeated random sampling to estimate numerical quantities. It\nis particularly useful when analytical computation is difficult or impossible.\n\n*“",
+  "topics": [
+    {
+      "title": "Introduction",
+      "summary": "Statistical simulation refers to the use of random sampling techniques to model and analyze complex systems or stochastic processes. It helps approximate results that are otherwise difficult to compute analytically.",
+      "subtopics": [],
+      "topic_id": "1"
+    },
+    {
+      "title": "Motivation",
+      "summary": "Analytical solutions to real‑world problems are often infeasible due to their mathematical complexity. Statistical simulation allows us to understand uncertainty, test hypotheses, and evaluate the performance of statistical estimators.",
+      "subtopics": [],
+      "topic_id": "2"
+    },
+    {
+      "title": "Basic Concepts",
+      "summary": "",
+      "subtopics": [
+        {
+          "title": "Random number generation using probability distributions",
+          "narration": "Statistical simulation begins with generating random numbers that follow specified probability distributions."
+        },
+        {
+          "title": "Sampling from populations or theoretical distributions",
+          "narration": "It involves drawing samples either from actual populations or from theoretical distribution models."
+        },
+        {
+          "title": "Repeated trials to approximate expected values",
+          "narration": "By conducting many repeated trials, one can approximate expected values of quantities of interest."
+        },
+        {
+          "title": "Using simulation outcomes for inference and prediction",
+          "narration": "The results of the simulation are then used for statistical inference and making predictions."
+        }
+      ],
+      "topic_id": "3"
+    },
+    {
+      "title": "Monte Carlo Simulation",
+      "summary": "",
+      "subtopics": [
+        {
+          "title": "Example",
+          "narration": "Estimation of π using random points inside a unit square. Steps: generate N random points (x, y) in [0,1] × [0,1]; count how many fall inside the unit circle (x² + y² < 1); estimate π as 4 × (points inside circle) / N."
+        },
+        {
+          "title": "Python Example",
+          "narration": "The Python code creates one million random (x, y) pairs, counts those satisfying x² + y² ≤ 1, and computes the estimate of π with the formula 4 * np.sum(x**2 + y**2 <= 1) / N."
+        }
+      ],
+      "topic_id": "4"
+    },
+    {
+      "title": "Bootstrapping",
+      "summary": "",
+      "subtopics": [
+        {
+          "title": "Example",
+          "narration": "Estimating confidence interval for mean. Steps: draw B bootstrap samples (with replacement) from the observed data; compute the mean for each sample; use the distribution of these means to estimate the standard error and construct confidence intervals."
+        },
+        {
+          "title": "Python Example",
+          "narration": "The Python snippet generates B bootstrap samples from a data array, calculates the mean of each sample, and obtains the 2.5th and 97.5th percentiles to form a 95 % confidence interval for the mean."
+        }
+      ],
+      "topic_id": "5"
+    },
+    {
+      "title": "Advantages of Statistical Simulation",
+      "summary": "",
+      "subtopics": [
+        {
+          "title": "Provides flexibility for complex problems",
+          "narration": "Simulation can be applied to a wide range of difficult problems where analytical solutions are unavailable."
+        },
+        {
+          "title": "Simplifies uncertainty quantification",
+          "narration": "It makes it easier to assess and visualize the uncertainty inherent in stochastic systems."
+        },
+        {
+          "title": "Enables visual understanding of stochastic processes",
+          "narration": "By generating simulated data, one can gain intuitive insight into how random processes behave."
+        },
+        {
+          "title": "Applicable across science, finance, and AI",
+          "narration": "The techniques are useful in many fields, from scientific research to financial modeling and artificial intelligence."
+        }
+      ],
+      "topic_id": "6"
+    },
+    {
+      "title": "Limitations",
+      "summary": "",
+      "subtopics": [
+        {
+          "title": "Can be computationally intensive",
+          "narration": "Large numbers of iterations may require substantial computing resources."
+        },
+        {
+          "title": "Accuracy depends on number of iterations",
+          "narration": "The precision of simulation results improves with more repetitions."
+        },
+        {
+          "title": "Random number quality affects results",
+          "narration": "Poor quality random number generators can lead to biased or inaccurate outcomes."
+        }
+      ],
+      "topic_id": "7"
+    },
+    {
+      "title": "Summary",
+      "summary": "Statistical simulation is a powerful tool for approximating complex models using random sampling. Monte Carlo methods and bootstrapping are foundational techniques that provide insights into uncertainty and sampling behavior.",
+      "subtopics": [],
+      "topic_id": "8"
+    },
+    {
+      "title": "References",
+      "summary": "",
+      "subtopics": [
+        {
+          "title": "Robert, C.P., & Casella, G. (2010). Monte Carlo Statistical Methods.",
+          "narration": ""
+        },
+        {
+          "title": "James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An Introduction to Statistical Learning.",
+          "narration": ""
+        },
+        {
+          "title": "NumPy and SciPy Documentation.",
+          "narration": ""
+        }
+      ],
+      "topic_id": "9"
+    },
+    {
+      "title": "Resampling Strategies Beyond Simple Bootstrapping",
+      "summary": "Introduces advanced resampling methods such as the jackknife, block bootstrap, and permutation tests, extending the basic bootstrapping concept.",
+      "supporting_quote": "Bootstrapping is a resampling technique used to estimate the sampling distribution of a statistic",
+      "is_assistant_generated": true,
+      "subtopics": [],
+      "topic_id": "10"
+    },
+    {
+      "title": "Assessing Random Number Generators",
+      "summary": "Provides criteria and tests (e.g., chi‑square, Kolmogorov‑Smirnov) for evaluating the randomness of generated numbers, ensuring reliable simulation outcomes.",
+      "supporting_quote": "Random number quality affects results",
+      "is_assistant_generated": true,
+      "subtopics": [],
+      "topic_id": "11"
+    }
+  ]
+}

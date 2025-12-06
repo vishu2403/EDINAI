@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.repository.lecture_repository import LectureRepository
 from app.services.lecture_generation_service import GroqService
-from app.services.tts_service import EdgeTTSService
+from app.services.tts_service import GTTSService
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class LectureService:
 
         self._repository = LectureRepository(db)
         self._generator = GroqService(api_key=inferred_api_key or "")
-        self._tts_service = EdgeTTSService(storage_root=storage_root)
+        self._tts_service = GTTSService(storage_root=storage_root)
         self._public_base_url = (
             settings.public_base_url.rstrip("/") if getattr(settings, "public_base_url", None) else None
         )
@@ -90,7 +90,6 @@ class LectureService:
             context=context,
             text=text,
             metadata=metadata,
-            fallback_used=lecture_payload.get("fallback_used", False),
         )
 
         return await self._attach_slide_audio(record)
@@ -152,7 +151,8 @@ class LectureService:
             return self._sanitize_audio_metadata(record)
 
         language = record.get("language", "English")
-        updated = False
+        generated_audio = False
+        metadata_changed = False
 
         for index, slide in enumerate(slides, start=1):
             narration = (slide.get("narration") or "").strip()
@@ -162,8 +162,12 @@ class LectureService:
             filename = f"slide-{slide.get('number') or index}.mp3"
             existing_file = self._audio_storage_root / lecture_id / "audio" / filename
 
+            audio_url = self._build_audio_url(lecture_id, existing_file.name)
+            if slide.get("audio_url") != audio_url:
+                slide["audio_url"] = audio_url
+                metadata_changed = True
+
             if existing_file.is_file():
-                slide["audio_url"] = self._build_audio_url(lecture_id, existing_file.name)
                 logger.info("Slide audio ready (existing): %s", slide["audio_url"])
                 continue
 
@@ -178,16 +182,15 @@ class LectureService:
             if not audio_path:
                 continue
 
-            slide["audio_url"] = self._build_audio_url(lecture_id, filename)
             logger.info("Slide audio generated: %s", slide["audio_url"])
-            updated = True
+            generated_audio = True
 
-        if not updated:
+        if not generated_audio and not metadata_changed:
             return self._sanitize_audio_metadata(record)
 
         updates = {
             "slides": slides,
-            "audio_generated": True,
+            "audio_generated": generated_audio or record.get("audio_generated"),
         }
         updated_record = await self._repository.update_lecture(lecture_id, updates)
         return self._sanitize_audio_metadata(updated_record)

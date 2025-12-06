@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "language_code": "eng",
+  "language_label": "English",
+  "topics_text": "I’m unable to extract the requested information because no PDF file was provided. Please upload the PDF you’d like me to analyze, and I’ll create the chapter‑wise outline as you described.",
+  "headings": [],
+  "chapter_titles": [
+    "using Cloudflare DNS"
+  ],
+  "chapter_title": "using Cloudflare DNS",
+  "excerpt": "Subdomain Setup Documentation (Cloudflare)\n\nOverview\n\nThis document explains how to create the subdomain edinai.yourdomain.com and point it to the server IP\n13.234.223.188 using Cloudflare DNS.\n\nStep 1: Open Cloudflare Dashboard\n\n1. Go to https://dash.cloudflare.com\n\n2. Select your domain (example: yourdomain.com)\n\n3. Open the DNS - Records page.\n\nStep 2: Add New DNS Record\n\nAdd a new DNS record with the following values:\n\nType: A\n\nName: EDINAI\n\nIPv4 Address: 13.234,223.188\n\nProxy Status: DNS Only (Grey cloud)\n\nTTL: Auto\n\nStep 3: Subdomain Created\nY our new subdomain is: edinai.yourdomain.com\n\nIt now points to: 13.234.223.188\n\nNotes\n- DNS propagation may take 1-10 minutes.\n- The server must run on port 80 or 443.\n\n- For HTTPS (SSL), use Certbot or Cloudflare SSL.\n\nHostinger Note\n\fNo need to create a subdomain in Hostinger because this subdomain points to an AWS ६९२2 server, not Hostinger\nhosting.\n\nSetup Complete.\n",
+  "topics": [
+    {
+      "title": "I’m unable to extract the requested information because no PDF file was provided. Please upload the PDF you’d like me to analyze, and I’ll create the chapter‑wise outline as you described.",
+      "summary": "",
+      "subtopics": [],
+      "topic_id": "1"
+    }
+  ]
+}
